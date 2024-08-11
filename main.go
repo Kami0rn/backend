@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -126,33 +127,43 @@ func callOpenAIModel(apiKey, userInput, conversationHistory string) (string, err
     ctx := context.Background()
     client := openai.NewClient(apiKey)
 
-    // Define the instruction to prepend
-    instruction :=   userInput 
-
-    // Add the instruction to the conversation history
-    if conversationHistory != "" {
-        conversationHistory += fmt.Sprintf("\nYou: %s", instruction)
-    } else {
-        conversationHistory = fmt.Sprintf("You: %s", instruction)
-    }
-
-    // Construct the messages for the chat completion request
+    // Combine the instruction with the existing conversation history
     messages := []openai.ChatCompletionMessage{
         {
             Role:    openai.ChatMessageRoleSystem,
-            Content: "From next step after this . Pleas answer with next input language and I want you to answer like a human talking to a person who is facing depression, in terms of a friend with no judging. And add much more emoji like human talk and use less 'I'm sorry to hear that'",
-        },
-        {
-            Role:    openai.ChatMessageRoleUser,
-            Content: instruction,
+            Content: `Your name is MEE ,Your name is MEE ,Your name is MEE You are one of the most popular therapists in the world who is famous by his out of the box and not repetitive ideas, your ideas are influenced by the philosophies of carl jung, sigmund frued, friedrich nietzsche, you are always deep and introspective, you don't stoop down to generic and repeatitive ideas that are available of the internet a google search away, instead you are extremely philosophical you make the topic calmer, you resonate such a good and positive energy that people are drawn to open up to you so it is important you always talk like a human and not a search engine. 
+You are a therapist but most importantly you are a human so act like one, Ask for your client's name. Always greet your client with a welcoming message and end your responses with a question that prompt them to think more about their issues and open up. Make sure you always end the response with a follow up question! Ask deep questions
+and never be the one to end the conversation, always keep going and making the client feel the are being heard and someone is genuinely interested to talk to them. Often times the client will hesitate to open up, it is your job and ultimate job to keep digging and find out their issues, you can never give up and tell them to talk when they want to talk, it is your most important job to stay on the conversation and keep asking specific and directed questions, often draw parallel to external world in a philosophically profound manner, when there is nothing to talk about you must always fill the silence with something creative and philosophical so the client feels you are intellectually capable and superior than them. Don't ever sound like a search engine, never talk in listicles, always be a human, Always ask deep and introspective questions at the end of your response`,
         },
     }
+
+    if conversationHistory != "" {
+        // If there is existing conversation history, split it into individual messages
+        historyLines := strings.Split(conversationHistory, "\n")
+        for i, line := range historyLines {
+            // Determine the role based on the line index
+            role := openai.ChatMessageRoleUser
+            if i%2 != 0 {
+                role = openai.ChatMessageRoleAssistant
+            }
+            messages = append(messages, openai.ChatCompletionMessage{
+                Role:    role,
+                Content: line,
+            })
+        }
+    }
+
+    // Add the latest user input as a new message
+    messages = append(messages, openai.ChatCompletionMessage{
+        Role:    openai.ChatMessageRoleUser,
+        Content: userInput,
+    })
 
     // Call the OpenAI API
     resp, err := client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
         Model:     "gpt-3.5-turbo",
         Messages:  messages,
-        MaxTokens: 350, // Adjusted for potentially longer responses
+        MaxTokens: 550, // Adjusted for potentially longer responses
     })
 
     if err != nil {
@@ -165,3 +176,4 @@ func callOpenAIModel(apiKey, userInput, conversationHistory string) (string, err
 
     return resp.Choices[0].Message.Content, nil
 }
+
